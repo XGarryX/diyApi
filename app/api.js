@@ -11,15 +11,15 @@ const Responser = (ctx, res, code) => {
 //搜索配件的品牌和类型
 router.post('/api/getAscriptionInfo', koaBody, async ctx => {
     let conn
-    const { ascriptionId } = ctx.request.body || {}
+    let { ascriptionId } = ctx.request.body || {}
     try {
-        if(!keyWord){
+        if(!ascriptionId){
             Responser(ctx, 'ascriptionId is empty', 500)
         }else{
             conn = await Sql.getConn()
             let data = await Sql.query(conn, {
-                sql: `SELECT * FROM Classify WHERE ascription = ?;SELECT * FROM Brand WHERE ascription = ?;`,
-                params: [ascriptionId, ascriptionId]
+                sql: 'CALL getAscriptionInfo(?)',
+                params: [ascriptionId]
             })
             Responser(ctx, data, 200)
         }
