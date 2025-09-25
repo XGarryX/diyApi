@@ -172,15 +172,15 @@ async function getCpu() {
                 params = []
 
             for(let j = 0; i + j < CPUList.length; j++) {
-                let { id, classify, classify1, title, orginal_price, paofen, gonglv, son: {hexin, xiancheng, xilie, zhicheng, jiekou, hexian, erji, zhuping, jiasu, sanji}} = CPUList[i + j]
+                let { id, classify1, pic, title, orginal_price, paofen, gonglv, son: {hexin, xiancheng, xilie, zhicheng, jiekou, hexian, erji, zhuping, jiasu, sanji}} = CPUList[i + j]
 
-                jiekou = jkList[jiekou]
+                jiekou = jkList[jiekou] || jiekou
 
                 hexian = hexian == '支持' ? 1 : 0
 
                 sql += " (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
 
-                params.push(id, classify, classify1, title, hexin, xiancheng, xilie, zhicheng, jiekou, hexian, erji, zhuping, jiasu, sanji, orginal_price, paofen, gonglv)
+                params.push(id, classify1, title, hexin, xiancheng, xilie, zhicheng, jiekou, hexian, erji, zhuping, jiasu, sanji, orginal_price, paofen, gonglv, pic)
             }
 
             sql = sql.replace(/.$/, ";")
@@ -195,6 +195,7 @@ async function getCpu() {
     }
 }
 
+//getCpu()
 
 async function getBoard() {
     let bordList = await getListByPage(Bord),
@@ -209,7 +210,7 @@ async function getBoard() {
                 params = []
 
             for(let j = 0; j < MAXIUM && i + j < bordList.length; j++) {
-                let { id, classify1, title, orginal_price, gonglv, son: {pingpai, yingpan, rgb, jiekou, wifi, banxing, pcie, xinpian, m2, sata, ddr, ddrcc, ddrrl, wangsu, dyjk, gongdian}} = bordList[i + j]
+                let { id, classify1, title, orginal_price, gonglv, pic, son: {pingpai, yingpan, rgb, jiekou, wifi, banxing, pcie, xinpian, m2, sata, ddr, ddrcc, ddrrl, wangsu, dyjk, gongdian}} = bordList[i + j]
 
                 let bid = pingpai && BrandData[Bord.classify].find(item => {
                     let reg = new RegExp(item.name, "i")
@@ -226,9 +227,9 @@ async function getBoard() {
                 ddrcc = ddrcc.match(/^\d/g), ddrcc = ddrcc&& ddrcc[0] || 0
                 
 
-                sql += " (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
+                sql += " (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
 
-                params.push(id, classify1, bid, title, yingpan, rgb, jiekou, wifi, banxing, pcie, xinpian, m2, sata, ddr, ddrcc, ddrrl, wangsu, dyjk, gongdian, orginal_price, gonglv)
+                params.push(id, classify1, bid, title, yingpan, rgb, jiekou, wifi, banxing, pcie, xinpian, m2, sata, ddr, ddrcc, ddrrl, wangsu, dyjk, gongdian, orginal_price, gonglv, pic)
             }
 
             sql = sql.replace(/.$/, ";")
@@ -243,7 +244,7 @@ async function getBoard() {
     }
 }
 
-//getBoard()
+getBoard()
 
 async function getCard() {
     let cardList = await getListByPage(Card),
@@ -507,7 +508,7 @@ async function getChassis() {
     }
 }
 
-getChassis()
+//getChassis()
 
 async function test() {
     let data = {

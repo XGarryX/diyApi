@@ -31,6 +31,35 @@ router.post('/api/getAscriptionInfo', koaBody, async ctx => {
     }
 })
 
+//搜索产品
+router.post('/api/getProductInfo', koaBody, async ctx => {
+    let conn
+    let { classifyFilter, keyWord = '', sort, limit = 20, page = 0} = ctx.request.body || {}
+    try {
+        let start = limit * page,
+            end = start + limit,
+            sql
+
+        conn = await Sql.getConn()
+        if(sort == 0 || sort == 1) {
+            sql = `SELECT * FROM CPU WHERE classify = IF(? = '',classify,?) AND title LIKE CONCAT('%', ?, '%') Order BY price+0 ${sort == 0 ? 'ASC' : 'DESC'} LIMIT ?, ?;`
+        } else {
+            sql = `SELECT * FROM CPU WHERE classify = IF(? = '',classify,?) AND title LIKE CONCAT('%', ?, '%') LIMIT ?, ?;`
+        }
+        let data = await Sql.query(conn, {
+            sql,
+            params: [classifyFilter, classifyFilter, keyWord, start, end]
+        })
+        Responser(ctx, data, 200)
+        
+    } catch(err) {
+        console.error('Gettin Song error: ' + err)
+        Responser(ctx, err, 500)
+    } finally {
+        conn && conn.release()
+    }
+})
+
 // //获取型号名
 // router.get('/api/getType', koaBody, async ctx => {
 //     let conn
