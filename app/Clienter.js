@@ -23,4 +23,6 @@ function OptPool() {
 
 }
 
-module.exports = OptPool
+const optPool = new OptPool()
+
+module.exports = optPool

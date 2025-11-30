@@ -8,6 +8,53 @@ const Responser = (ctx, res, code) => {
     ctx.body = typeof res == "string" ? res : CircularJSON.stringify(res)
 }
 
+function checkCpu(cpuJk, boardJk) {
+    if( cpuJk && boardJk && cpuJk != boardJk) {
+        return `接口不兼容，CPU【${cpuJk}】，主板【${boardJk}】` 
+    }
+}
+function checkBoard(cpuJk, boardJk) {
+    if( cpuJk && boardJk && cpuJk != boardJk) {
+        return `接口不兼容，主板【${boardJk}】，CPU【${cpuJk}】` 
+    }
+}
+function checkMemory(ddr, boardDdr) {
+    if( ddr && boardDdr && ddr != boardDdr) {
+        return `主板和内存接口不兼容，主板【DDR${boardDdr}】，内存【DDR${ddr}】` 
+    }
+}
+function checkGpu(length, xianka) {
+    if(length && xianka && length > xianka) {
+        return `显卡的长度【${length}cm】 超出机箱限长【 ≤${xianka}cm】`
+    }
+}
+function checkDisk(jiekou, M2) {
+    if(jiekou && M2 !== '' && jiekou == 'M.2' && M2 < 1) {
+        return `主板和硬盘接口不兼容 主板未配备M.2接口`
+    }
+}
+function checkFan(height, leixing, cpu, shuileng) {
+    //判断是否为水冷 支不支持
+    if(leixing && leixing.match('冷排') && shuileng && !shuileng.match(leixing)){
+        return `散热器与机箱不兼容，水冷类型【${leixing}】，机箱支持水冷类型【${shuileng}】`
+    }
+
+    if(height && cpu && height > cpu) {
+        return `散热器与超过机箱高度，散热器【${height}mm】机箱【${cpu}mm】 `
+    }
+}
+function checkChassis(boardSize, mBoardSize) {
+    if(boardSize && mBoardSize && boardSize < mBoardSize) {
+        return `机箱与主板大小不匹配，主板过大 `
+    }
+}
+
+function checkPwoer(dygl, allGonglv) {
+    if(dygl && allGonglv && dygl < allGonglv ) {
+        return`电源功率不足，当前总功耗【${allGonglv}W】，电源功率【${dygl}W】`
+    }
+}
+
 //搜索配件的品牌和类型
 router.post('/api/getAscriptionInfo', koaBody, async ctx => {
     let conn
@@ -31,10 +78,66 @@ router.post('/api/getAscriptionInfo', koaBody, async ctx => {
     }
 })
 
-//搜索产品
-router.post('/api/getProductInfo', koaBody, async ctx => {
+//获取cpu
+router.post('/api/getCpuInfo', koaBody, async ctx => {
     let conn
-    let { classifyFilter, keyWord = '', sort, limit = 20, page = 0} = ctx.request.body || {}
+    let { classifyFilter, keyWord = '', sort, limit = 20, page = 0, allId = ''} = ctx.request.body || {}
+    try {
+        let start = limit * page,
+            end = start + limit,
+            sql
+
+        let { boardId } = JSON.parse(allId)
+        
+        conn = await Sql.getConn()
+        if(sort == 0 || sort == 1) {
+            sql = `
+                SELECT CPU.*, HistoryPrice.currentPrice as price,
+                    (SELECT jk from CPUJk WHERE CPUJk.id = CPU.jk) as cpuJk,
+                    (SELECT jk from CPUJk WHERE CPUJk.id = MotherBoard.cpu) as boardJk
+                FROM CPU
+                    LEFT JOIN MotherBoard ON MotherBoard.id = ?
+                    LEFT JOIN HistoryPrice ON HistoryPrice.pid = CPU.id
+                WHERE CPU.classify = IF(? = '',CPU.classify,?) AND CPU.title LIKE CONCAT('%', ?, '%') Order BY HistoryPrice.currentPrice ${sort == 0 ? 'ASC' : 'DESC'} LIMIT ?, ?;`
+        } else {
+            sql = `
+                SELECT CPU.*, HistoryPrice.currentPrice as price, 
+                    (SELECT jk from CPUJk WHERE CPUJk.id = CPU.jk) as cpuJk,
+                    (SELECT jk from CPUJk WHERE CPUJk.id = MotherBoard.cpu) as boardJk
+                FROM CPU
+                    LEFT JOIN MotherBoard ON MotherBoard.id = ?
+                    LEFT JOIN HistoryPrice ON HistoryPrice.pid = CPU.id
+                WHERE CPU.classify = IF(? = '',CPU.classify,?) AND CPU.title LIKE CONCAT('%', ?, '%') LIMIT ?, ?;`
+        }
+        
+        let cpuData = await Sql.query(conn, {
+            sql,
+            params: [boardId, classifyFilter, classifyFilter, keyWord, start, end]
+        })
+        
+        if(boardId) {
+            cpuData.forEach(item => {
+                let { cpuJk, boardJk } = item,
+                    err = checkCpu(cpuJk, boardJk)
+                if(err)
+                    item.err = err
+            })
+        }
+
+        Responser(ctx, cpuData, 200)
+        
+    } catch(err) {
+        console.error('Gettin Song error: ' + err)
+        Responser(ctx, err, 500)
+    } finally {
+        conn && conn.release()
+    }
+})
+
+//搜索主板
+router.post('/api/getBoardInfo', koaBody, async ctx => {
+    let conn
+    let { classifyFilter, brandFilter, keyWord = '', sort, limit = 20, page = 0, allId = ''} = ctx.request.body || {}
     try {
         let start = limit * page,
             end = start + limit,
@@ -42,14 +145,89 @@ router.post('/api/getProductInfo', koaBody, async ctx => {
 
         conn = await Sql.getConn()
         if(sort == 0 || sort == 1) {
-            sql = `SELECT * FROM CPU WHERE classify = IF(? = '',classify,?) AND title LIKE CONCAT('%', ?, '%') Order BY price+0 ${sort == 0 ? 'ASC' : 'DESC'} LIMIT ?, ?;`
+            sql = `
+                SELECT MotherBoard.*, HistoryPrice.currentPrice as price,
+                    (SELECT jk from CPUJk WHERE CPUJk.id = CPU.jk) as cpuJk,
+                    (SELECT jk from CPUJk WHERE CPUJk.id = MotherBoard.cpu) as boardJk,
+                    (SELECT BoradSize.sizeName from BoradSize WHERE BoradSize.size  = MotherBoard.size) as boradSize
+                FROM MotherBoard
+                    LEFT JOIN CPU ON CPU.id = ?
+                    LEFT JOIN HistoryPrice ON HistoryPrice.pid = MotherBoard.id
+                WHERE MotherBoard.classify = IF(? = '',MotherBoard.classify,?) AND MotherBoard.brand = IF(? = '',MotherBoard.brand,?) AND MotherBoard.title LIKE CONCAT('%', ?, '%') Order BY HistoryPrice.currentPrice ${sort == 0 ? 'ASC' : 'DESC'} LIMIT ?, ?;`
         } else {
-            sql = `SELECT * FROM CPU WHERE classify = IF(? = '',classify,?) AND title LIKE CONCAT('%', ?, '%') LIMIT ?, ?;`
+            sql = `
+                SELECT MotherBoard.*, HistoryPrice.currentPrice as price,
+                    (SELECT jk from CPUJk WHERE CPUJk.id = CPU.jk) as cpuJk,
+                    (SELECT jk from CPUJk WHERE CPUJk.id = MotherBoard.cpu) as boardJk,
+                    (SELECT BoradSize.sizeName from BoradSize WHERE BoradSize.size  = MotherBoard.size) as boradSize
+                FROM MotherBoard
+                    LEFT JOIN CPU ON CPU.id = ?
+                    LEFT JOIN HistoryPrice ON HistoryPrice.pid = MotherBoard.id
+                WHERE MotherBoard.classify = IF(? = '',MotherBoard.classify,?) AND MotherBoard.brand = IF(? = '',MotherBoard.brand,?) AND MotherBoard.title LIKE CONCAT('%', ?, '%') LIMIT ?, ?;`
         }
+        let { cpuId } = JSON.parse(allId)
+
         let data = await Sql.query(conn, {
             sql,
-            params: [classifyFilter, classifyFilter, keyWord, start, end]
+            params: [cpuId, classifyFilter, classifyFilter, brandFilter, brandFilter, keyWord, start, end]
         })
+
+        if(cpuId) {
+            data.forEach(item => {
+                let { cpuJk, boardJk } = item,
+                    err = checkBoard(cpuJk, boardJk)
+                if(err)
+                    item.err = err
+            })
+        }
+        Responser(ctx, data, 200)
+        
+    } catch(err) {
+        console.error('Gettin Song error: ' + err)
+        Responser(ctx, err, 500)
+    } finally {
+        conn && conn.release()
+    }
+})
+//内存
+router.post('/api/getMemoryInfo', koaBody, async ctx => {
+    let conn
+    let { classifyFilter, brandFilter, keyWord = '', sort, limit = 20, page = 0, allId = ''} = ctx.request.body || {}
+    try {
+        let start = limit * page,
+            end = start + limit,
+            sql
+
+        conn = await Sql.getConn()
+        if(sort == 0 || sort == 1) {
+            sql = `
+                SELECT Memory.*, MotherBoard.ddr AS boardDdr, HistoryPrice.currentPrice as price FROM Memory
+                    LEFT JOIN MotherBoard ON MotherBoard.id = ?
+                    LEFT JOIN HistoryPrice ON HistoryPrice.pid = Memory.id
+                WHERE Memory.classify = IF(? = '',Memory.classify,?) AND Memory.brand = IF(? = '',Memory.brand,?) AND Memory.title LIKE CONCAT('%', ?, '%') Order BY HistoryPrice.currentPrice ${sort == 0 ? 'ASC' : 'DESC'} LIMIT ?, ?;`
+        } else {
+            sql = `
+                SELECT Memory.*, MotherBoard.ddr AS boardDdr, HistoryPrice.currentPrice as price FROM Memory
+                    LEFT JOIN MotherBoard ON MotherBoard.id = ?
+                    LEFT JOIN HistoryPrice ON HistoryPrice.pid = Memory.id
+                WHERE Memory.classify = IF(? = '',Memory.classify,?) AND Memory.brand = IF(? = '',Memory.brand,?) AND Memory.title LIKE CONCAT('%', ?, '%') LIMIT ?, ?;`
+        }
+        let { boardId } = JSON.parse(allId)
+
+        let data = await Sql.query(conn, {
+            sql,
+            params: [boardId, classifyFilter, classifyFilter, brandFilter, brandFilter, keyWord, start, end]
+        })
+
+        if(boardId) {
+            data.forEach(item => {
+                let { ddr, boardDdr } = item,
+                    err = checkMemory(ddr, boardDdr)
+                if(err)
+                    item.err = err
+            })
+        }
+    
         Responser(ctx, data, 200)
         
     } catch(err) {
@@ -60,225 +238,440 @@ router.post('/api/getProductInfo', koaBody, async ctx => {
     }
 })
 
-// //获取型号名
-// router.get('/api/getType', koaBody, async ctx => {
-//     let conn
-//     try {
-//         conn = await Sql.getConn()
-//         let data = await Sql.query(conn, {
-//             sql: `SELECT * FROM type;`
-//         })
-//         Responser(ctx, data, 200)
-//     } catch(err) {
-//         console.error('Gettin Song error: ' + err)
-//         Responser(ctx, err, 500)
-//     } finally {
-//         conn && conn.release()
-//     }
-// })
+router.post('/api/getGpuInfo', koaBody, async ctx => {
+    let conn
+    let { classifyFilter, brandFilter, keyWord = '', sort, limit = 20, page = 0, allId = ''} = ctx.request.body || {}
+    try {
+        let start = limit * page,
+            end = start + limit,
+            sql
 
-// //获取品牌
-// router.get('/api/getBrand', async ctx => {
-//     let conn
-//     try {
-//         conn = await Sql.getConn()
-//         let data = await Sql.query(conn, {
-//             sql: `SELECT * FROM brand;`
-//         })
-//         Responser(ctx, data, 200)
-//     } catch (err) {
-//         console.error('Gettin Song error: ' + err)
-//         Responser(ctx, err, 500)
-//     } finally {
-//         conn && conn.release()
-//     }
-// })
+        conn = await Sql.getConn()
+        if(sort == 0 || sort == 1) {
+            sql = `
+                SELECT GPU.*, Chassis.xianka, HistoryPrice.currentPrice as price FROM GPU
+                    LEFT JOIN Chassis ON Chassis.id = ?
+                    LEFT JOIN HistoryPrice ON HistoryPrice.pid = GPU.id
+                WHERE GPU.classify = IF(? = '',GPU.classify,?) AND GPU.brand = IF(? = '',GPU.brand,?) AND GPU.title LIKE CONCAT('%', ?, '%') Order BY HistoryPrice.currentPrice ${sort == 0 ? 'ASC' : 'DESC'} LIMIT ?, ?;`
+        } else {
+            sql = `
+                SELECT GPU.*, Chassis.xianka, HistoryPrice.currentPrice as price FROM GPU
+                    LEFT JOIN Chassis ON Chassis.id = ?
+                    LEFT JOIN HistoryPrice ON HistoryPrice.pid = GPU.id
+                WHERE GPU.classify = IF(? = '',GPU.classify,?) AND GPU.brand = IF(? = '',GPU.brand,?) AND GPU.title LIKE CONCAT('%', ?, '%') LIMIT ?, ?;`
+        }
+        let { chassisId } = JSON.parse(allId)
 
-// //添加品牌
-// router.post('/api/addBrand', koaBody, async ctx => {
-//     let conn
-//     const { text } = ctx.request.body || {}
-//     try {
-//         if(!text){
-//             Responser(ctx, 'brandName is empty', 500)
-//         }else{
-//             conn = await Sql.getConn()
-//             let data = await Sql.query(conn, {
-//                 sql: `INSERT INTO brand VALUES(UUID(), ?);`,
-//                 params: [text]
-//             })
-//             Responser(ctx, data, 200)
-//         }
-//     } catch(err) {
-//         console.error('Gettin Song error: ' + err)
-//         Responser(ctx, err, 500)
-//     } finally {
-//         conn && conn.release()
-//     }
-// })
+        let data = await Sql.query(conn, {
+            sql,
+            params: [chassisId, classifyFilter, classifyFilter, brandFilter, brandFilter, keyWord, start, end]
+        })
 
-// //获取品牌
-// router.get('/api/getPacking', async ctx => {
-//     let conn
-//     try {
-//         conn = await Sql.getConn()
-//         let data = await Sql.query(conn, {
-//             sql: `SELECT * FROM packing;`
-//         })
-//         Responser(ctx, data, 200)
-//     } catch (err) {
-//         console.error('Gettin Song error: ' + err)
-//         Responser(ctx, err, 500)
-//     } finally {
-//         conn && conn.release()
-//     }
-// })
+        if(chassisId) {
+            data.forEach(item => {
+                let { length, xianka } = item,
+                    err = checkGpu(length, xianka)
+                if(err)
+                    item.err = err
+            })
+        }
 
-// //添加品牌
-// router.post('/api/addPacking', koaBody, async ctx => {
-//     let conn
-//     const { text } = ctx.request.body || {}
-//     try {
-//         if(!text){
-//             Responser(ctx, 'brandName is empty', 500)
-//         }else{
-//             conn = await Sql.getConn()
-//             let data = await Sql.query(conn, {
-//                 sql: `INSERT INTO packing VALUES(UUID(), ?);`,
-//                 params: [text]
-//             })
-//             Responser(ctx, data, 200)
-//         }
-//     } catch(err) {
-//         console.error('Gettin Song error: ' + err)
-//         Responser(ctx, err, 500)
-//     } finally {
-//         conn && conn.release()
-//     }
-// })
+        Responser(ctx, data, 200)
+        
+    } catch(err) {
+        console.error('Gettin Song error: ' + err)
+        Responser(ctx, err, 500)
+    } finally {
+        conn && conn.release()
+    }
+})
 
-// //添加型号
-// router.post('/api/addType', koaBody, async ctx => {
-//     let conn
-//     const { typeName, brandId, packingId } = ctx.request.body || {}
-//     try {
-//         if(!typeName || !brandId || !packingId){
-//             Responser(ctx, 'typeName, brandId, packingId is empty', 500)
-//         }else{
-//             conn = await Sql.getConn()
-//             let data = await Sql.query(conn, {
-//                 sql: `INSERT INTO type VALUES(UUID(), ?, ?, ?);`,
-//                 params: [typeName, brandId, packingId]
-//             })
-//             Responser(ctx, data, 200)
-//         }
-//     } catch(err) {
-//         console.error('Gettin Song error: ' + err)
-//         Responser(ctx, err, 500)
-//     } finally {
-//         conn && conn.release()
-//     }
-// })
+router.post('/api/getDiskInfo', koaBody, async ctx => {
+    let conn
+    let { classifyFilter, brandFilter, keyWord = '', sort, limit = 20, page = 0, allId} = ctx.request.body || {}
+    try {
+        let start = limit * page,
+            end = start + limit,
+            sql
 
-// //查询型号
-// router.post('/api/searchType', koaBody, async ctx => {
-//     let conn
-//     const { brandId, packingId } = ctx.request.body || {}
-//     try {
-//         conn = await Sql.getConn()
-//         let data = await Sql.query(conn, {
-//             sql: 'CALL searchType(?, ?);',
-//             params: [brandId, packingId]
-//         })
-//         Responser(ctx, data, 200)
-//     } catch(err) {
-//         console.error('Gettin Song error: ' + err)
-//         Responser(ctx, err, 500)
-//     } finally {
-//         conn && conn.release()
-//     }
-// })
+        conn = await Sql.getConn()
+        if(sort == 0 || sort == 1) {
+            sql = `
+                SELECT Disk.*, MotherBoard.M2, HistoryPrice.currentPrice as price FROM Disk
+                    LEFT JOIN MotherBoard ON MotherBoard.id = ?
+                    LEFT JOIN HistoryPrice ON HistoryPrice.pid = Disk.id
+                WHERE Disk.classify = IF(? = '',Disk.classify,?) AND Disk.brand = IF(? = '',Disk.brand,?) AND Disk.title LIKE CONCAT('%', ?, '%') Order BY HistoryPrice.currentPrice ${sort == 0 ? 'ASC' : 'DESC'} LIMIT ?, ?;`
+        } else {
+            sql = `
+                SELECT Disk.*, MotherBoard.M2, HistoryPrice.currentPrice as price FROM Disk 
+                    LEFT JOIN MotherBoard ON MotherBoard.id = ?
+                    LEFT JOIN HistoryPrice ON HistoryPrice.pid = Disk.id
+                WHERE Disk.classify = IF(? = '',Disk.classify,?) AND Disk.brand = IF(? = '',Disk.brand,?) AND Disk.title LIKE CONCAT('%', ?, '%') LIMIT ?, ?;`
+        }
+        let { boardId } = JSON.parse(allId)
 
-// //模糊搜地址
-// router.post('/api/searchAdress', koaBody, async ctx => {
-//     let conn
-//     const { keyWord } = ctx.request.body || {}
-//     try {
-//         if(!keyWord){
-//             Responser(ctx, 'keyWord is empty', 500)
-//         }else{
-//             conn = await Sql.getConn()
-//             let data = await Sql.query(conn, {
-//                 sql: `SELECT * FROM adress WHERE adress LIKE CONCAT('%', ?, '%');`,
-//                 params: [keyWord]
-//             })
-//             Responser(ctx, data, 200)
-//         }
-//     } catch(err) {
-//         console.error('Gettin Song error: ' + err)
-//         Responser(ctx, err, 500)
-//     } finally {
-//         conn && conn.release()
-//     }
-// })
+        let data = await Sql.query(conn, {
+            sql,
+            params: [boardId, classifyFilter, classifyFilter, brandFilter, brandFilter, keyWord, start, end]
+        })
 
-// //添加订单
-// router.post('/api/addOrder', koaBody, async ctx => {
-//     let conn
-//     let { typeId, adress, adressId, count, price } = ctx.request.body || {}
-//     try {
-//         if(!typeId || !adress || !count || !price){
-//             Responser(ctx, 'keyWord is empty', 500)
-//         }else{
-//             let data
-//             conn = await Sql.getConn()
-//             if(!adressId) {
-//                 data = await Sql.query(conn, {
-//                     sql: `CALL addOrderWithoutAdressId(?, ?, ?, ?);`,
-//                     params: [typeId, adress, count, price]
-//                 })
-//             } else {
-//                 data = await Sql.query(conn, {
-//                     sql: `CALL addOrder(?, ?, ?, ?);`,
-//                     params: [typeId, adressId, count, price]
-//                 })
-//             }
-//             Responser(ctx, data, 200)
-//         }
-//     } catch(err) {
-//         console.error('Gettin Song error: ' + err)
-//         Responser(ctx, err, 500)
-//     } finally {
-//         conn && conn.release()
-//     }
-// })
+        if(boardId) {
+            data.forEach(item => {
+                let { jiekou, M2 } = item,
+                    err = checkDisk(jiekou, M2)
+                if (err)
+                    item.err = err
+            })
+        }
 
-// //搜索订单
-// router.post('/api/searchOrder', koaBody, async ctx => {
-//     let conn
-//     let { typeId, adressId, startDate, endDate } = ctx.request.body || {}
-//     try {
-//         let data
-//         conn = await Sql.getConn()
-//         if(!startDate || !endDate) {
-//             data = await Sql.query(conn, {
-//                 sql: `CALL searchOrder(?, ?);`,
-//                 params: [typeId, adressId]
-//             })
-//         } else {
-//             data = await Sql.query(conn, {
-//                 sql: `CALL searchOrderWithDate(?, ?, ?, ?);`,
-//                 params: [typeId, adressId, startDate, endDate]
-//             })
-//         }
-//         Responser(ctx, data, 200)
-//     } catch(err) {
-//         console.error('Gettin Song error: ' + err)
-//         Responser(ctx, err, 500)
-//     } finally {
-//         conn && conn.release()
-//     }
-// })
+        Responser(ctx, data, 200)
+        
+    } catch(err) {
+        console.error('Gettin Song error: ' + err)
+        Responser(ctx, err, 500)
+    } finally {
+        conn && conn.release()
+    }
+})
 
+router.post('/api/getPowerInfo', koaBody, async ctx => {
+    let conn
+    let { classifyFilter, brandFilter, keyWord = '', sort, limit = 20, page = 0, allId = ''} = ctx.request.body || {}
+    try {
+        let start = limit * page,
+            end = start + limit,
+            sql
+
+        conn = await Sql.getConn()
+        if(sort == 0 || sort == 1) {
+            sql = `SELECT Power.*, HistoryPrice.currentPrice as price FROM Power 
+                        LEFT JOIN HistoryPrice ON HistoryPrice.pid = Power.id
+                    WHERE Power.classify = IF(? = '',Power.classify,?) AND Power.brand = IF(? = '',Power.brand,?) AND Power.title LIKE CONCAT('%', ?, '%') Order BY HistoryPrice.currentPrice ${sort == 0 ? 'ASC' : 'DESC'} LIMIT ?, ?;`
+        } else {
+            sql = `SELECT Power.*, HistoryPrice.currentPrice as price FROM Power
+                        LEFT JOIN HistoryPrice ON HistoryPrice.pid = Power.id
+                    WHERE Power.classify = IF(? = '',Power.classify,?) AND Power.brand = IF(? = '',Power.brand,?) AND title LIKE CONCAT('%', ?, '%') LIMIT ?, ?;`
+        }
+        let data = await Sql.query(conn, {
+            sql,
+            params: [classifyFilter, classifyFilter, brandFilter, brandFilter, keyWord, start, end]
+        })
+
+        let { cpuId, gpuId, memoryId, diskId, fanId } = JSON.parse(allId)
+        let ids = [cpuId, gpuId, memoryId, diskId, fanId],
+            names = [],
+            params = []
+
+        ids.forEach((item, index) => {
+            let name
+            if(item) {
+                switch(index) {
+                    case 0:
+                        name = 'CPU'
+                        break
+                    case 1:
+                        name = 'GPU'
+                        break
+                    case 2:
+                        name = 'Memory'
+                        break
+                    case 3:
+                        name = 'Disk'
+                        break
+                    case 4:
+                        name = 'Fan'
+                        break
+                }
+                name && names.push(name)
+                name && params.push(item)
+            }
+        })
+        
+        if(names.length) {
+            let getPowerSql =`SELECT SUM(${ names.map(item => item + '.gonglv').join('+')}) AS gonglv FROM ${names[0]}
+                ${names.slice(1).map(item => {return `LEFT JOIN ${item} ON ${item}.id = ?`}).join('')}WHERE ${names[0]}.id = ?`,
+            b = [...params.slice(1), params[0]]
+            
+            let res = await Sql.query(conn, {
+                sql: getPowerSql,
+                params: b
+            })
+
+            let allGonglv = res[0] && res[0].gonglv
+
+            data.forEach(item => {
+                let { dygl } = item,
+                    err = checkPwoer(dygl, allGonglv)
+                if(err)
+                    item.err = err
+            })
+        }
+
+        Responser(ctx, data, 200)
+        
+    } catch(err) {
+        console.error('Gettin Song error: ' + err)
+        Responser(ctx, err, 500)
+    } finally {
+        conn && conn.release()
+    }
+})
+
+router.post('/api/getFanInfo', koaBody, async ctx => {
+    let conn
+    let { classifyFilter, brandFilter, keyWord = '', sort, limit = 20, page = 0, allId} = ctx.request.body || {}
+    try {
+        let start = limit * page,
+            end = start + limit,
+            sql
+
+        conn = await Sql.getConn()
+        if(sort == 0 || sort == 1) {
+            sql = `
+                SELECT Fan.*, Chassis.cpu, Chassis.shuileng, HistoryPrice.currentPrice as price FROM Fan 
+                    LEFT JOIN Chassis ON Chassis.id = ?
+                    LEFT JOIN HistoryPrice ON HistoryPrice.pid = Fan.id
+                WHERE Fan.classify = IF(? = '',Fan.classify,?) AND Fan.brand = IF(? = '',Fan.brand,?) AND Fan.title LIKE CONCAT('%', ?, '%') Order BY HistoryPrice.currentPrice ${sort == 0 ? 'ASC' : 'DESC'} LIMIT ?, ?;`
+        } else {
+            sql = `
+                SELECT Fan.*, Chassis.cpu, Chassis.shuileng, HistoryPrice.currentPrice as price FROM Fan
+                    LEFT JOIN Chassis ON Chassis.id = ?
+                    LEFT JOIN HistoryPrice ON HistoryPrice.pid = Fan.id
+                WHERE Fan.classify = IF(? = '',Fan.classify,?) AND Fan.brand = IF(? = '',Fan.brand,?) AND Fan.title LIKE CONCAT('%', ?, '%') LIMIT ?, ?;`
+        }
+        let { chassisId } = JSON.parse(allId)
+
+        let data = await Sql.query(conn, {
+            sql,
+            params: [chassisId, classifyFilter, classifyFilter, brandFilter, brandFilter, keyWord, start, end]
+        })        
+
+        if(chassisId) {
+            data.forEach(item => {
+                let { height, leixing, cpu, shuileng } = item,
+                    err = checkFan(height, leixing, cpu, shuileng)
+                if(err)
+                    item.err = err
+            })
+        }
+
+        Responser(ctx, data, 200)
+        
+    } catch(err) {
+        console.error('Gettin Song error: ' + err)
+        Responser(ctx, err, 500)
+    } finally {
+        conn && conn.release()
+    }
+})
+
+router.post('/api/getChassisInfo', koaBody, async ctx => {
+    let conn
+    let { classifyFilter, brandFilter, keyWord = '', sort, limit = 20, page = 0, allId} = ctx.request.body || {}
+    try {
+        let start = limit * page,
+            end = start + limit,
+            sql
+
+        conn = await Sql.getConn()
+        if(sort == 0 || sort == 1) {
+            sql = `
+                SELECT Chassis.*, MotherBoard.size AS mBoardSize, HistoryPrice.currentPrice as price,
+                    (SELECT GROUP_CONCAT(BoradSize.sizeName) FROM BoradSize WHERE BoradSize.size <= Chassis.boardSize) AS allSize
+                FROM Chassis 
+                    LEFT JOIN MotherBoard ON MotherBoard.id = ?
+                    LEFT JOIN HistoryPrice ON HistoryPrice.pid = Chassis.id
+                WHERE Chassis.classify = IF(? = '',Chassis.classify,?) AND Chassis.brand = IF(? = '',Chassis.brand,?) AND Chassis.title LIKE CONCAT('%', ?, '%') Order BY HistoryPrice.currentPrice ${sort == 0 ? 'ASC' : 'DESC'} LIMIT ?, ?;`
+        } else {
+            sql = `
+                SELECT Chassis.*, MotherBoard.size AS mBoardSize, HistoryPrice.currentPrice as price,
+                    (SELECT GROUP_CONCAT(BoradSize.sizeName) FROM BoradSize WHERE BoradSize.size <= Chassis.boardSize) AS allSize
+                FROM Chassis
+                    LEFT JOIN MotherBoard ON MotherBoard.id = ?
+                    LEFT JOIN HistoryPrice ON HistoryPrice.pid = Chassis.id
+                WHERE Chassis.classify = IF(? = '',Chassis.classify,?) AND Chassis.brand = IF(? = '',Chassis.brand,?) AND Chassis.title LIKE CONCAT('%', ?, '%') LIMIT ?, ?;`
+        }
+        let { boardId } = JSON.parse(allId)
+
+        let data = await Sql.query(conn, {
+            sql,
+            params: [boardId, classifyFilter, classifyFilter, brandFilter, brandFilter, keyWord, start, end]
+        })
+
+        if(boardId) {
+            data.forEach(item => {
+                let { boardSize, mBoardSize } = item,
+                    err = checkChassis(boardSize, mBoardSize)
+                if(err)
+                    item.err = err
+            })
+        }
+
+        Responser(ctx, data, 200)
+        
+    } catch(err) {
+        console.error('Gettin Song error: ' + err)
+        Responser(ctx, err, 500)
+    } finally {
+        conn && conn.release()
+    }
+})
+//检查兼容性
+router.post('/api/checkCompatible', koaBody, async ctx => {
+    let conn
+    let { allId } = ctx.request.body || {}
+    try {
+        conn = await Sql.getConn()
+        
+        let { cpuId, boardId, memoryId, gpuId, diskId, powerId, fanId, chassisId } = JSON.parse(allId)
+
+        let data = await Sql.query(conn, {
+            sql: 'call getCcompatibleInfo(?, ?, ?, ?, ?, ?, ?, ?)',
+            params: [cpuId, boardId, memoryId, gpuId, diskId, powerId, fanId, chassisId]
+        })
+        
+        let err = [
+            allInfo => {
+                let { jk } = allInfo[0][0] || {}
+                let { jk: boardJk } = allInfo[1][0] || {}
+                return checkCpu(jk, boardJk)
+            },
+            allInfo => {
+                let { jk } = allInfo[0]
+                let { jk: boardJk } = allInfo[1][0] || {}
+                return checkBoard(jk, boardJk)
+            },
+            allInfo => {
+                let { ddr: boardDdr } = allInfo[1][0] || {}
+                let { ddr } = allInfo[2][0] || {}
+                return checkMemory(ddr, boardDdr)
+            },
+            allInfo => {
+                let { length } = allInfo[3][0] || {}
+                let { xianka } = allInfo[7][0] || {}
+                return checkGpu(length, xianka)
+            },
+            allInfo => {
+                let { M2 } = allInfo[1][0] || {}
+                let { jiekou } = allInfo[4][0] || {}
+                return checkDisk(jiekou, M2)
+            },
+            allInfo => {
+                let { dygl } = allInfo[5][0] || {}
+                let allGonglv = [...data].reduce((prpo, current) => {
+                    let { gonglv = 0 } = current[0] || {}
+                    return prpo + gonglv
+                }, 0)
+                return checkPwoer(dygl, allGonglv)
+            },
+            allInfo => {
+                let { height, leixing } = allInfo[6][0] || {}
+                let { cpu, shuileng } = allInfo[7][0] || {}
+                return checkFan(height, leixing, cpu, shuileng)
+            },
+            allInfo => {
+                let { size } = allInfo[1][0] || {}
+                let { boardSize } = allInfo[7][0] || {}
+                return checkChassis(boardSize, size)
+            }
+        ].map(item => item(data))
+
+        Responser(ctx, err, 200)
+        
+    } catch(err) {
+        console.error('Gettin Song error: ' + err)
+        Responser(ctx, err, 500)
+    } finally {
+        conn && conn.release()
+    }
+})
+
+router.post('/api/getHistoryPrice', koaBody, async ctx => {
+    let conn
+    let { productId, ascriptionId } = ctx.request.body || {}
+    try {
+        if(productId == undefined || ascriptionId == undefined) {
+            Responser(ctx, 'productId or aid is empty', 500)
+        } else {
+            let table
+            
+            switch(ascriptionId) {
+                case '1':
+                    table = 'CPU'
+                    break
+                case '2':
+                    table = 'MotherBoard'
+                    break
+                case '3':
+                    table = 'Memory'
+                    break
+                case '4':
+                    table = 'GPU'
+                    break
+                case '5':
+                    table = 'Disk'
+                    break
+                case '6':
+                    table = 'Power'
+                    break
+                case '7':
+                    table = 'Fan'
+                    break
+                case '8':
+                    table = 'Chassis'
+                    break
+            }
+
+
+            let conn = await Sql.getConn(),
+                [historyPrice, productInfo] = await Promise.all([
+                    Sql.query(conn, {
+                        sql: 'SELECT * FROM HistoryPrice WHERE HistoryPrice.pid = ?',
+                        params: [productId]
+                    }),
+                    Sql.query(conn, {
+                        sql: `SELECT * FROM ${table} WHERE id = ?;`,
+                        params: [productId]
+                    })
+                ])
+
+            historyPrice = historyPrice && historyPrice[0] || {}
+            productInfo = productInfo && productInfo[0] || {}
+
+            Responser(ctx, [historyPrice, productInfo], 200)
+        }
+    } catch(err) {
+        console.error('Gettin Song error: ' + err)
+        Responser(ctx, err, 500)
+    } finally {
+        conn && conn.release()
+    }
+})
+
+router.post('/api/getBuilds', koaBody, async ctx => {
+    let conn
+    let { buildId } = ctx.request.body || {}
+    try {
+        if(buildId == undefined) {
+            Responser(ctx, 'buildId is empty', 500)
+        } else {
+            conn = await Sql.getConn()
+
+            let data = await Sql.query(conn, {
+                sql: 'CALL getBuildInfo(?)',
+                params: [buildId]
+            })
+
+        data = data[0] || []
+
+        Responser(ctx, data, 200)
+        }
+    } catch(err) {
+        console.error('Gettin Song error: ' + err)
+        Responser(ctx, err, 500)
+    } finally {
+        conn && conn.release()
+    }
+})
 
 module.exports = router

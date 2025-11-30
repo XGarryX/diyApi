@@ -244,7 +244,7 @@ async function getBoard() {
     }
 }
 
-getBoard()
+//getBoard()
 
 async function getCard() {
     let cardList = await getListByPage(Card),
@@ -389,7 +389,7 @@ async function getPower() {
                 params = []
 
             for(let j = 0; j < MAXIUM && i + j < powerList.length; j++) {
-                let { id, classify1, orginal_price, title, pic, son: { pinpai, fsqt, xiaolv, leixing, jiekou, sata, dygl}} = powerList[i + j]
+                let { id, classify1, orginal_price, title, pic, son: { pinpai, fsqt, xiaolv, leixing, jiekou, sata, dygl, mozu}} = powerList[i + j]
 
                 let bid = BrandData[Power.classify].find(item => {
                     let reg = new RegExp(item.name.trim(), "i")
@@ -399,11 +399,11 @@ async function getPower() {
 
                 bid = bid && bid.id || null
 
-                sql += " (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
+                sql += " (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
 
                 dygl = dygl.match(/\d+(?=W)/i), dygl = dygl && dygl[0] || null
 
-                params.push(id, classify1, bid, title, orginal_price, pic, fsqt, xiaolv, leixing, jiekou, sata, dygl)
+                params.push(id, classify1, bid, title, orginal_price, pic, fsqt, xiaolv, leixing, jiekou, sata, dygl, mozu)
             }
 
             sql = sql.replace(/.$/, ";")
@@ -433,7 +433,7 @@ async function getFan() {
                 params = []
 
             for(let j = 0; j < MAXIUM && i + j < fanList.length; j++) {
-                let { id, classify1, orginal_price, title, pic, gonglv, son: { pinpai, dyjk, height, rgsl, chicun}} = fanList[i + j]
+                let { id, classify1, orginal_price, title, pic, gonglv, son: { pinpai, dyjk, height, rgsl, chicun, leixing}} = fanList[i + j]
 
                 let bid = BrandData[Fan.classify].find(item => {
                     let reg = new RegExp(item.name.trim(), "i")
@@ -443,11 +443,11 @@ async function getFan() {
 
                 bid = bid && bid.id || null
 
-                sql += " (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
+                sql += " (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
 
                 height = height.trim().match(/\d+(?=mm)/i), height = height && height[0] || null
 
-                params.push(id, classify1, bid, title, orginal_price, gonglv, pic, dyjk, height, rgsl, chicun)
+                params.push(id, classify1, bid, title, orginal_price, gonglv, pic, dyjk, height, rgsl, chicun, leixing)
             }
 
             sql = sql.replace(/.$/, ";")
@@ -477,7 +477,7 @@ async function getChassis() {
                 params = []
 
             for(let j = 0; j < MAXIUM && i + j < chassisList.length; j++) {
-                let { id, classify1, orginal_price, title, pic, son: { pinpai, tixing, xianka, shuileng, cpu}} = chassisList[i + j]
+                let { id, classify1, orginal_price, title, pic, son: { pinpai, tixing, xianka, shuileng, cpu, zhuban}} = chassisList[i + j]
 
                 let bid = BrandData[Chassis.classify].find(item => {
                     let reg = new RegExp(item.name.trim(), "i")
@@ -487,13 +487,21 @@ async function getChassis() {
 
                 bid = bid && bid.id || null
 
-                sql += " (?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
+                sql += " (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
                 
                 xianka = xianka.trim().match(/\d+(?=cm)/i), xianka = xianka && xianka[0] || null
 
                 cpu = cpu.trim().match(/\d+(?=mm)/i), cpu = cpu && cpu[0] || null
 
-                params.push(id, classify1, bid, title, orginal_price, pic, tixing, xianka, shuileng, cpu)
+                let boradSize
+                ['EATX', 'ATX', 'MATX', 'ITX'].find((item, i) => {
+                    if(zhuban && zhuban.match(item)) {
+                        boradSize = 4 - i
+                        return true
+                    }
+                })
+
+                params.push(id, classify1, bid, title, orginal_price, pic, tixing, xianka, shuileng, cpu, boradSize)
             }
 
             sql = sql.replace(/.$/, ";")
@@ -509,6 +517,68 @@ async function getChassis() {
 }
 
 //getChassis()
+async function getPrice(id) {
+    await sleep(500)
+    let list
+    try {
+        list = await axios.post('https://www.diy888.cn/api/goods/gidHistoryPrice', {
+            filter_time: 0,
+            id
+        }, {
+            headers: {
+                "sec-ch-ua": `"Not;A=Brand";v="99", "Google Chrome";v="139", "Chromium";v="139"`,
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": "Windows",
+                "ec-fetch-dest": "empty",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-site": "same-origin",
+                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"
+            }
+        })
+    } catch (e) {
+        console.log(e)
+    }
+
+    let { date1, data, min_price, min_price_date } = list.data.data,
+        currentPrice = data[data.length - 1]
+
+    date1 = date1.map(date => {
+        return date.replace(/(\d{4})年(\d{2})月(\d{2})日/g, '$1-$2-$3')
+    })
+
+    return { date1, data, currentPrice, min_price, min_price_date }
+}
+
+async function getHistoryPrice() {
+    let conn
+    try {
+        conn = await Sql.getConn()
+
+        let allId = await Sql.query(conn, {sql: 'CALL getAllProductId()'})
+
+        allId = allId[0]
+
+        for(let i = 0;i < allId.length;i++) {
+            let { id } = allId[i]
+
+            let { date1, data, currentPrice, min_price, min_price_date } = await getPrice(id)
+
+            let params = [id, data.join(), date1.join(), currentPrice, min_price, min_price_date]
+
+            let sql = 'INSERT INTO HistoryPrice VALUES (?, ?, ?, ?, ?, ?)'
+
+            await insertData(conn, sql, params)
+
+            console.log(`${allId.length}/${i}`)
+        }
+        
+    } catch(err) {
+        console.error('Gettin Song error: ' + err)
+    } finally {
+        conn && conn.release()
+        console.log('done')
+    }
+}
 
 async function test() {
     let data = {
@@ -529,3 +599,7 @@ async function test() {
 }
 
 //test()
+
+//getChassis()
+
+getHistoryPrice()

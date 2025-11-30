@@ -1,5 +1,4 @@
-const OptPool = require('./Clienter')
-const optPool = new OptPool();
+const optPool = require('./Clienter')
 const pool = optPool.getPool();
 
 const Sql = {
