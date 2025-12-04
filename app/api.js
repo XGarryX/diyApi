@@ -57,13 +57,13 @@ function checkPwoer(dygl, allGonglv) {
 
 //搜索配件的品牌和类型
 router.post('/api/getAscriptionInfo', koaBody, async ctx => {
-    let conn
+    let conn, pool
     let { ascriptionId } = ctx.request.body || {}
     try {
         if(!ascriptionId){
             Responser(ctx, 'ascriptionId is empty', 500)
         }else{
-            conn = await Sql.getConn()
+            [conn, pool] = await Sql.getConn()
             let data = await Sql.query(conn, {
                 sql: 'CALL getAscriptionInfo(?)',
                 params: [ascriptionId]
@@ -74,13 +74,13 @@ router.post('/api/getAscriptionInfo', koaBody, async ctx => {
         console.error('Gettin Song error: ' + err)
         Responser(ctx, err, 500)
     } finally {
-        conn && conn.release()
+        conn && pool && pool.releaseConnection(conn)
     }
 })
 
 //获取cpu
 router.post('/api/getCpuInfo', koaBody, async ctx => {
-    let conn
+    let conn, pool
     let { classifyFilter, keyWord = '', sort, limit = 20, page = 0, allId = ''} = ctx.request.body || {}
     try {
         let start = limit * page,
@@ -89,7 +89,7 @@ router.post('/api/getCpuInfo', koaBody, async ctx => {
 
         let { boardId } = JSON.parse(allId)
         
-        conn = await Sql.getConn()
+        [conn, pool] = await Sql.getConn()
         if(sort == 0 || sort == 1) {
             sql = `
                 SELECT CPU.*, HistoryPrice.currentPrice as price,
@@ -130,20 +130,20 @@ router.post('/api/getCpuInfo', koaBody, async ctx => {
         console.error('Gettin Song error: ' + err)
         Responser(ctx, err, 500)
     } finally {
-        conn && conn.release()
+        conn && pool && pool.releaseConnection(conn)
     }
 })
 
 //搜索主板
 router.post('/api/getBoardInfo', koaBody, async ctx => {
-    let conn
+    let conn, pool
     let { classifyFilter, brandFilter, keyWord = '', sort, limit = 20, page = 0, allId = ''} = ctx.request.body || {}
     try {
         let start = limit * page,
             end = start + limit,
             sql
 
-        conn = await Sql.getConn()
+        [conn, pool] = await Sql.getConn()
         if(sort == 0 || sort == 1) {
             sql = `
                 SELECT MotherBoard.*, HistoryPrice.currentPrice as price,
@@ -186,19 +186,19 @@ router.post('/api/getBoardInfo', koaBody, async ctx => {
         console.error('Gettin Song error: ' + err)
         Responser(ctx, err, 500)
     } finally {
-        conn && conn.release()
+        conn && pool && pool.releaseConnection(conn)
     }
 })
 //内存
 router.post('/api/getMemoryInfo', koaBody, async ctx => {
-    let conn
+    let conn, pool
     let { classifyFilter, brandFilter, keyWord = '', sort, limit = 20, page = 0, allId = ''} = ctx.request.body || {}
     try {
         let start = limit * page,
             end = start + limit,
             sql
 
-        conn = await Sql.getConn()
+        [conn, pool] = await Sql.getConn()
         if(sort == 0 || sort == 1) {
             sql = `
                 SELECT Memory.*, MotherBoard.ddr AS boardDdr, HistoryPrice.currentPrice as price FROM Memory
@@ -234,19 +234,19 @@ router.post('/api/getMemoryInfo', koaBody, async ctx => {
         console.error('Gettin Song error: ' + err)
         Responser(ctx, err, 500)
     } finally {
-        conn && conn.release()
+        conn && pool && pool.releaseConnection(conn)
     }
 })
 
 router.post('/api/getGpuInfo', koaBody, async ctx => {
-    let conn
+    let conn, pool
     let { classifyFilter, brandFilter, keyWord = '', sort, limit = 20, page = 0, allId = ''} = ctx.request.body || {}
     try {
         let start = limit * page,
             end = start + limit,
             sql
 
-        conn = await Sql.getConn()
+        [conn, pool] = await Sql.getConn()
         if(sort == 0 || sort == 1) {
             sql = `
                 SELECT GPU.*, Chassis.xianka, HistoryPrice.currentPrice as price FROM GPU
@@ -282,19 +282,19 @@ router.post('/api/getGpuInfo', koaBody, async ctx => {
         console.error('Gettin Song error: ' + err)
         Responser(ctx, err, 500)
     } finally {
-        conn && conn.release()
+        conn && pool && pool.releaseConnection(conn)
     }
 })
 
 router.post('/api/getDiskInfo', koaBody, async ctx => {
-    let conn
+    let conn, pool
     let { classifyFilter, brandFilter, keyWord = '', sort, limit = 20, page = 0, allId} = ctx.request.body || {}
     try {
         let start = limit * page,
             end = start + limit,
             sql
 
-        conn = await Sql.getConn()
+        [conn, pool] = await Sql.getConn()
         if(sort == 0 || sort == 1) {
             sql = `
                 SELECT Disk.*, MotherBoard.M2, HistoryPrice.currentPrice as price FROM Disk
@@ -330,19 +330,19 @@ router.post('/api/getDiskInfo', koaBody, async ctx => {
         console.error('Gettin Song error: ' + err)
         Responser(ctx, err, 500)
     } finally {
-        conn && conn.release()
+        conn && pool && pool.releaseConnection(conn)
     }
 })
 
 router.post('/api/getPowerInfo', koaBody, async ctx => {
-    let conn
+    let conn, pool
     let { classifyFilter, brandFilter, keyWord = '', sort, limit = 20, page = 0, allId = ''} = ctx.request.body || {}
     try {
         let start = limit * page,
             end = start + limit,
             sql
 
-        conn = await Sql.getConn()
+        [conn, pool] = await Sql.getConn()
         if(sort == 0 || sort == 1) {
             sql = `SELECT Power.*, HistoryPrice.currentPrice as price FROM Power 
                         LEFT JOIN HistoryPrice ON HistoryPrice.pid = Power.id
@@ -413,19 +413,19 @@ router.post('/api/getPowerInfo', koaBody, async ctx => {
         console.error('Gettin Song error: ' + err)
         Responser(ctx, err, 500)
     } finally {
-        conn && conn.release()
+        conn && pool && pool.releaseConnection(conn)
     }
 })
 
 router.post('/api/getFanInfo', koaBody, async ctx => {
-    let conn
+    let conn, pool
     let { classifyFilter, brandFilter, keyWord = '', sort, limit = 20, page = 0, allId} = ctx.request.body || {}
     try {
         let start = limit * page,
             end = start + limit,
             sql
 
-        conn = await Sql.getConn()
+        [conn, pool] = await Sql.getConn()
         if(sort == 0 || sort == 1) {
             sql = `
                 SELECT Fan.*, Chassis.cpu, Chassis.shuileng, HistoryPrice.currentPrice as price FROM Fan 
@@ -461,19 +461,19 @@ router.post('/api/getFanInfo', koaBody, async ctx => {
         console.error('Gettin Song error: ' + err)
         Responser(ctx, err, 500)
     } finally {
-        conn && conn.release()
+        conn && pool && pool.releaseConnection(conn)
     }
 })
 
 router.post('/api/getChassisInfo', koaBody, async ctx => {
-    let conn
+    let conn, pool
     let { classifyFilter, brandFilter, keyWord = '', sort, limit = 20, page = 0, allId} = ctx.request.body || {}
     try {
         let start = limit * page,
             end = start + limit,
             sql
 
-        conn = await Sql.getConn()
+        [conn, pool] = await Sql.getConn()
         if(sort == 0 || sort == 1) {
             sql = `
                 SELECT Chassis.*, MotherBoard.size AS mBoardSize, HistoryPrice.currentPrice as price,
@@ -513,15 +513,15 @@ router.post('/api/getChassisInfo', koaBody, async ctx => {
         console.error('Gettin Song error: ' + err)
         Responser(ctx, err, 500)
     } finally {
-        conn && conn.release()
+        conn && pool && pool.releaseConnection(conn)
     }
 })
 //检查兼容性
 router.post('/api/checkCompatible', koaBody, async ctx => {
-    let conn
+    let conn, pool
     let { allId } = ctx.request.body || {}
     try {
-        conn = await Sql.getConn()
+        [conn, pool] = await Sql.getConn()
         
         let { cpuId, boardId, memoryId, gpuId, diskId, powerId, fanId, chassisId } = JSON.parse(allId)
 
@@ -582,12 +582,12 @@ router.post('/api/checkCompatible', koaBody, async ctx => {
         console.error('Gettin Song error: ' + err)
         Responser(ctx, err, 500)
     } finally {
-        conn && conn.release()
+        conn && pool && pool.releaseConnection(conn)
     }
 })
 
 router.post('/api/getHistoryPrice', koaBody, async ctx => {
-    let conn
+    let conn, pool
     let { productId, ascriptionId } = ctx.request.body || {}
     try {
         if(productId == undefined || ascriptionId == undefined) {
@@ -623,8 +623,8 @@ router.post('/api/getHistoryPrice', koaBody, async ctx => {
             }
 
 
-            let conn = await Sql.getConn(),
-                [historyPrice, productInfo] = await Promise.all([
+            [conn, pool] = await Sql.getConn()
+            let [historyPrice, productInfo] = await Promise.all([
                     Sql.query(conn, {
                         sql: 'SELECT * FROM HistoryPrice WHERE HistoryPrice.pid = ?',
                         params: [productId]
@@ -644,18 +644,18 @@ router.post('/api/getHistoryPrice', koaBody, async ctx => {
         console.error('Gettin Song error: ' + err)
         Responser(ctx, err, 500)
     } finally {
-        conn && conn.release()
+        conn && pool && pool.releaseConnection(conn)
     }
 })
 
 router.post('/api/getBuilds', koaBody, async ctx => {
-    let conn
+    let conn, pool
     let { buildId } = ctx.request.body || {}
     try {
         if(buildId == undefined) {
             Responser(ctx, 'buildId is empty', 500)
         } else {
-            conn = await Sql.getConn()
+            [conn, pool] = await Sql.getConn()
 
             let data = await Sql.query(conn, {
                 sql: 'CALL getBuildInfo(?)',
@@ -670,7 +670,7 @@ router.post('/api/getBuilds', koaBody, async ctx => {
         console.error('Gettin Song error: ' + err)
         Responser(ctx, err, 500)
     } finally {
-        conn && conn.release()
+        conn && pool && pool.releaseConnection(conn)
     }
 })
 

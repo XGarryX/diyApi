@@ -5,7 +5,7 @@ const Sql = {
     getConn: async _ => {
         return new Promise((reslove, reject) => {
             pool.getConnection(function (err, conn) {
-                err && reject(err) || reslove(conn)
+                err && reject(err) || reslove([conn, pool])
             });
         })
     },
