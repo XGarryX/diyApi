@@ -497,18 +497,18 @@ router.post('/api/getChassisInfo', koaBody, async ctx => {
         pool = req[1]
         if(sort == 0 || sort == 1) {
             sql = `
-                SELECT Chassis.*, MotherBoard.size AS mBoardSize, HistoryPrice.currentPrice as price,
-                    (SELECT GROUP_CONCAT(BoradSize.sizeName) FROM BoradSize WHERE BoradSize.size <= Chassis.boardSize) AS allSize
+                SELECT Chassis.*, MotherBoard.size AS mBoardSize, BoradSize.sizeName, HistoryPrice.currentPrice as price
                 FROM Chassis 
                     LEFT JOIN MotherBoard ON MotherBoard.id = ?
+                    LEFT JOIN BoradSize ON BoradSize.size = Chassis.boardSize
                     LEFT JOIN HistoryPrice ON HistoryPrice.pid = Chassis.id
                 WHERE Chassis.classify = IF(? = '',Chassis.classify,?) AND Chassis.brand = IF(? = '',Chassis.brand,?) AND Chassis.title LIKE CONCAT('%', ?, '%') Order BY HistoryPrice.currentPrice ${sort == 0 ? 'ASC' : 'DESC'} LIMIT ?, ?;`
         } else {
             sql = `
-                SELECT Chassis.*, MotherBoard.size AS mBoardSize, HistoryPrice.currentPrice as price,
-                    (SELECT GROUP_CONCAT(BoradSize.sizeName) FROM BoradSize WHERE BoradSize.size <= Chassis.boardSize) AS allSize
+                SELECT Chassis.*, MotherBoard.size AS mBoardSize, BoradSize.sizeName , HistoryPrice.currentPrice as price
                 FROM Chassis
                     LEFT JOIN MotherBoard ON MotherBoard.id = ?
+                    LEFT JOIN BoradSize ON BoradSize.size = Chassis.boardSize
                     LEFT JOIN HistoryPrice ON HistoryPrice.pid = Chassis.id
                 WHERE Chassis.classify = IF(? = '',Chassis.classify,?) AND Chassis.brand = IF(? = '',Chassis.brand,?) AND Chassis.title LIKE CONCAT('%', ?, '%') LIMIT ?, ?;`
         }
