@@ -89,7 +89,10 @@ router.post('/api/getCpuInfo', koaBody, async ctx => {
 
         let { boardId } = JSON.parse(allId)
         
-        [conn, pool] = await Sql.getConn()
+        let req = await Sql.getConn()
+        conn = req[0]
+        pool = req[1]
+
         if(sort == 0 || sort == 1) {
             sql = `
                 SELECT CPU.*, HistoryPrice.currentPrice as price,
@@ -143,7 +146,10 @@ router.post('/api/getBoardInfo', koaBody, async ctx => {
             end = start + limit,
             sql
 
-        [conn, pool] = await Sql.getConn()
+        let req = await Sql.getConn()
+        conn = req[0]
+        pool = req[1]
+
         if(sort == 0 || sort == 1) {
             sql = `
                 SELECT MotherBoard.*, HistoryPrice.currentPrice as price,
@@ -198,7 +204,10 @@ router.post('/api/getMemoryInfo', koaBody, async ctx => {
             end = start + limit,
             sql
 
-        [conn, pool] = await Sql.getConn()
+        let req = await Sql.getConn()
+        conn = req[0]
+        pool = req[1]
+
         if(sort == 0 || sort == 1) {
             sql = `
                 SELECT Memory.*, MotherBoard.ddr AS boardDdr, HistoryPrice.currentPrice as price FROM Memory
@@ -246,7 +255,10 @@ router.post('/api/getGpuInfo', koaBody, async ctx => {
             end = start + limit,
             sql
 
-        [conn, pool] = await Sql.getConn()
+        let req = await Sql.getConn()
+        conn = req[0]
+        pool = req[1]
+
         if(sort == 0 || sort == 1) {
             sql = `
                 SELECT GPU.*, Chassis.xianka, HistoryPrice.currentPrice as price FROM GPU
@@ -294,7 +306,10 @@ router.post('/api/getDiskInfo', koaBody, async ctx => {
             end = start + limit,
             sql
 
-        [conn, pool] = await Sql.getConn()
+        let req = await Sql.getConn()
+        conn = req[0]
+        pool = req[1]
+        
         if(sort == 0 || sort == 1) {
             sql = `
                 SELECT Disk.*, MotherBoard.M2, HistoryPrice.currentPrice as price FROM Disk
@@ -342,7 +357,9 @@ router.post('/api/getPowerInfo', koaBody, async ctx => {
             end = start + limit,
             sql
 
-        [conn, pool] = await Sql.getConn()
+        let req = await Sql.getConn()
+        conn = req[0]
+        pool = req[1]
         if(sort == 0 || sort == 1) {
             sql = `SELECT Power.*, HistoryPrice.currentPrice as price FROM Power 
                         LEFT JOIN HistoryPrice ON HistoryPrice.pid = Power.id
@@ -425,7 +442,9 @@ router.post('/api/getFanInfo', koaBody, async ctx => {
             end = start + limit,
             sql
 
-        [conn, pool] = await Sql.getConn()
+        let req = await Sql.getConn()
+        conn = req[0]
+        pool = req[1]
         if(sort == 0 || sort == 1) {
             sql = `
                 SELECT Fan.*, Chassis.cpu, Chassis.shuileng, HistoryPrice.currentPrice as price FROM Fan 
@@ -473,7 +492,9 @@ router.post('/api/getChassisInfo', koaBody, async ctx => {
             end = start + limit,
             sql
 
-        [conn, pool] = await Sql.getConn()
+        let req = await Sql.getConn()
+        conn = req[0]
+        pool = req[1]
         if(sort == 0 || sort == 1) {
             sql = `
                 SELECT Chassis.*, MotherBoard.size AS mBoardSize, HistoryPrice.currentPrice as price,
@@ -521,7 +542,9 @@ router.post('/api/checkCompatible', koaBody, async ctx => {
     let conn, pool
     let { allId } = ctx.request.body || {}
     try {
-        [conn, pool] = await Sql.getConn()
+        let req = await Sql.getConn()
+        conn = req[0]
+        pool = req[1]
         
         let { cpuId, boardId, memoryId, gpuId, diskId, powerId, fanId, chassisId } = JSON.parse(allId)
 
@@ -623,7 +646,9 @@ router.post('/api/getHistoryPrice', koaBody, async ctx => {
             }
 
 
-            [conn, pool] = await Sql.getConn()
+            let req = await Sql.getConn()
+            conn = req[0]
+            pool = req[1]
             let [historyPrice, productInfo] = await Promise.all([
                     Sql.query(conn, {
                         sql: 'SELECT * FROM HistoryPrice WHERE HistoryPrice.pid = ?',
@@ -655,7 +680,9 @@ router.post('/api/getBuilds', koaBody, async ctx => {
         if(buildId == undefined) {
             Responser(ctx, 'buildId is empty', 500)
         } else {
-            [conn, pool] = await Sql.getConn()
+            let req = await Sql.getConn()
+            conn = req[0]
+            pool = req[1]
 
             let data = await Sql.query(conn, {
                 sql: 'CALL getBuildInfo(?)',
