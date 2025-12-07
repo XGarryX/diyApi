@@ -620,28 +620,41 @@ router.post('/api/getHistoryPrice', koaBody, async ctx => {
             
             switch(ascriptionId) {
                 case '1':
-                    table = 'CPU'
+                    table = `
+                        SELECT CPU.*, 
+                            (SELECT jk from CPUJk WHERE CPUJk.id = CPU.jk) as cpuJk
+                        FROM CPU WHERE CPU.id = ?;
+                    `
                     break
                 case '2':
-                    table = 'MotherBoard'
+                    table = `
+                        SELECT MotherBoard.*,
+                            (SELECT jk from CPUJk WHERE CPUJk.id = MotherBoard.cpu) as boardJk,
+                            (SELECT BoradSize.sizeName from BoradSize WHERE BoradSize.size  = MotherBoard.size) as boradSize
+                        FROM MotherBoard WHERE MotherBoard.id = ?;
+                    `
                     break
                 case '3':
-                    table = 'Memory'
+                    table = `SELECT * FROM Memory WHERE Memory.id = ?;`
                     break
                 case '4':
-                    table = 'GPU'
+                    table = 'SELECT * FROM GPU WHERE GPU.id = ?;'
                     break
                 case '5':
-                    table = 'Disk'
+                    table = 'SELECT * FROM Disk WHERE Disk.id = ?;'
                     break
                 case '6':
-                    table = 'Power'
+                    table = 'SELECT * FROM Power WHERE Power.id = ?;'
                     break
                 case '7':
-                    table = 'Fan'
+                    table = 'SELECT * FROM Fan WHERE Fan.id = ?;'
                     break
                 case '8':
-                    table = 'Chassis'
+                    table = `
+                        SELECT Chassis.*, BoradSize.sizeName FROM Chassis
+                            LEFT JOIN BoradSize ON BoradSize.size = Chassis.boardSize
+                        WHERE Chassis.id = ?;
+                    `
                     break
             }
 
@@ -655,7 +668,7 @@ router.post('/api/getHistoryPrice', koaBody, async ctx => {
                         params: [productId]
                     }),
                     Sql.query(conn, {
-                        sql: `SELECT * FROM ${table} WHERE id = ?;`,
+                        sql: table,
                         params: [productId]
                     })
                 ])

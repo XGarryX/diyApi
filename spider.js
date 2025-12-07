@@ -128,10 +128,14 @@ async function insertData(conn, sql, params) {
 
 async function getBrand() {
     let conn,
+        pool,
         template = `INSERT INTO Brand VALUES`
 
     try {
-        conn = await Sql.getConn()
+        let res = await Sql.getConn()
+        conn = res[0]
+        pool = res[1]
+
         for(let classify in BrandData) {
             let brand = BrandData[classify],
                 sql = template,
@@ -152,7 +156,7 @@ async function getBrand() {
     } catch(err) {
         console.error('Gettin Song error: ' + err)
     } finally {
-        conn && conn.release()
+        conn && pool && pool.releaseConnection(conn)
     }
 }
 
@@ -160,12 +164,14 @@ async function getBrand() {
 
 async function getCpu() {
     let CPUList = await getListByPage(CPU),
-        conn,
+        conn, pool,
         MAXIUM = 5,
         template = `INSERT INTO CPU VALUES`
 
     try {
-        conn = await Sql.getConn()
+        let res = await Sql.getConn()
+        conn = res[0]
+        pool = res[1]
         
         for(let i = 0; i < CPUList.length; i += MAXIUM) {
             let sql = template,
@@ -190,7 +196,7 @@ async function getCpu() {
     } catch(err) {
         console.error('Gettin Song error: ' + err)
     } finally {
-        conn && conn.release()
+        conn && pool && pool.releaseConnection(conn)
         console.log('done')
     }
 }
@@ -199,12 +205,15 @@ async function getCpu() {
 
 async function getBoard() {
     let bordList = await getListByPage(Bord),
-        conn = await Sql.getConn()
+        conn, pool,
         MAXIUM = 5,
         template = `INSERT INTO MotherBoard VALUES`
 
     try {
-        
+        let res = await Sql.getConn()
+        conn = res[0]
+        pool = res[1]
+
         for(let i = 0; i < bordList.length; i += MAXIUM) {
             let sql = template,
                 params = []
@@ -239,7 +248,7 @@ async function getBoard() {
     } catch(err) {
         console.error('Gettin Song error: ' + err)
     } finally {
-        conn && conn.release()
+        conn && pool && pool.releaseConnection(conn)
         console.log('done')
     }
 }
@@ -248,12 +257,15 @@ async function getBoard() {
 
 async function getCard() {
     let cardList = await getListByPage(Card),
-        conn = await Sql.getConn()
+        conn, pool,
         MAXIUM = 5,
         template = `INSERT INTO GPU VALUES`
 
     try {
-        
+        let res = await Sql.getConn()
+        conn = res[0]
+        pool = res[1]
+
         for(let i = 0; i < cardList.length; i += MAXIUM) {
             let sql = template,
                 params = []
@@ -283,7 +295,7 @@ async function getCard() {
     } catch(err) {
         console.error('Gettin Song error: ' + err)
     } finally {
-        conn && conn.release()
+        conn && pool && pool.releaseConnection(conn)
         console.log('done')
     }
 }
@@ -293,12 +305,15 @@ async function getCard() {
 async function getMemory() {
     let memoryList = await getListByPage(Memory),
     //let memoryList = await getList(Memory, 1),
-        conn,
+        conn, pool,
         MAXIUM = 5,
         template = `INSERT INTO Memory VALUES`
 
     try {
-        conn = await Sql.getConn()
+        let res = await Sql.getConn()
+        conn = res[0]
+        pool = res[1]
+
         for(let i = 0; i < memoryList.length; i += MAXIUM) {
             let sql = template,
                 params = []
@@ -327,7 +342,7 @@ async function getMemory() {
     } catch(err) {
         console.error('Gettin Song error: ' + err)
     } finally {
-        conn && conn.release()
+        conn && pool && pool.releaseConnection(conn)
         console.log('done')
     }
 }
@@ -336,12 +351,15 @@ async function getMemory() {
 
 async function getDisk() {
     let diskList = await getListByPage(Disk),
-        conn,
+        conn, pool,
         MAXIUM = 5,
         template = `INSERT INTO Disk VALUES`
 
     try {
-        conn = await Sql.getConn()
+        let res = await Sql.getConn()
+        conn = res[0]
+        pool = res[1]
+
         for(let i = 0; i < diskList.length; i += MAXIUM) {
             let sql = template,
                 params = []
@@ -369,7 +387,7 @@ async function getDisk() {
     } catch(err) {
         console.error('Gettin Song error: ' + err)
     } finally {
-        conn && conn.release()
+        conn && pool && pool.releaseConnection(conn)
         console.log('done')
     }
 }
@@ -378,12 +396,15 @@ async function getDisk() {
 
 async function getPower() {
     let powerList = await getListByPage(Power),
-        conn,
+        conn, pool,
         MAXIUM = 5,
         template = `INSERT INTO Power VALUES`
 
     try {
-        conn = await Sql.getConn()
+        let res = await Sql.getConn()
+        conn = res[0]
+        pool = res[1]
+
         for(let i = 0; i < powerList.length; i += MAXIUM) {
             let sql = template,
                 params = []
@@ -413,7 +434,7 @@ async function getPower() {
     } catch(err) {
         console.error('Gettin Song error: ' + err)
     } finally {
-        conn && conn.release()
+        conn && pool && pool.releaseConnection(conn)
         console.log('done')
     }
 }
@@ -422,12 +443,15 @@ async function getPower() {
 
 async function getFan() {
     let fanList = await getListByPage(Fan),
-        conn,
+        conn, pool,
         MAXIUM = 5,
         template = `INSERT INTO Fan VALUES`
 
     try {
-        conn = await Sql.getConn()
+        let res = await Sql.getConn()
+        conn = res[0]
+        pool = res[1]
+
         for(let i = 0; i < fanList.length; i += MAXIUM) {
             let sql = template,
                 params = []
@@ -457,7 +481,7 @@ async function getFan() {
     } catch(err) {
         console.error('Gettin Song error: ' + err)
     } finally {
-        conn && conn.release()
+        conn && pool && pool.releaseConnection(conn)
         console.log('done')
     }
 }
@@ -466,12 +490,15 @@ async function getFan() {
 
 async function getChassis() {
     let chassisList = await getListByPage(Chassis),
-        conn,
+        conn, pool,
         MAXIUM = 5,
         template = `INSERT INTO Chassis VALUES`
 
     try {
-        conn = await Sql.getConn()
+        let res = await Sql.getConn()
+        conn = res[0]
+        pool = res[1]
+
         for(let i = 0; i < chassisList.length; i += MAXIUM) {
             let sql = template,
                 params = []
@@ -511,7 +538,7 @@ async function getChassis() {
     } catch(err) {
         console.error('Gettin Song error: ' + err)
     } finally {
-        conn && conn.release()
+        conn && pool && pool.releaseConnection(conn)
         console.log('done')
     }
 }
@@ -550,9 +577,11 @@ async function getPrice(id) {
 }
 
 async function getHistoryPrice() {
-    let conn
+    let conn, pool
     try {
-        conn = await Sql.getConn()
+        let res = await Sql.getConn()
+        conn = res[0]
+        pool = res[1]
 
         let allId = await Sql.query(conn, {sql: 'CALL getAllProductId()'})
 
@@ -565,7 +594,7 @@ async function getHistoryPrice() {
 
             let params = [id, data.join(), date1.join(), currentPrice, min_price, min_price_date]
 
-            let sql = 'INSERT INTO HistoryPrice VALUES (?, ?, ?, ?, ?, ?)'
+            let sql = 'CALL inertPrice(?, ?, ?, ?, ?, ?)'
 
             await insertData(conn, sql, params)
 
@@ -575,7 +604,7 @@ async function getHistoryPrice() {
     } catch(err) {
         console.error('Gettin Song error: ' + err)
     } finally {
-        conn && conn.release()
+        conn && pool && pool.releaseConnection(conn)
         console.log('done')
     }
 }
