@@ -35,9 +35,22 @@ function checkDisk(jiekou, M2) {
 }
 function checkFan(height, leixing, cpu, shuileng) {
     //判断是否为水冷 支不支持
-    if(leixing && leixing.match('冷排') && shuileng && !shuileng.match(leixing)){
-        return `散热器与机箱不兼容，水冷类型【${leixing}】，机箱支持水冷类型【${shuileng}】`
+    if(leixing && leixing.match('冷排')){
+        if(shuileng && !shuileng.match('冷排')) {
+            return `散热器与机箱不兼容，机箱不支持水冷`   
+        } else {
+            let fanLen = leixing.match(/\d+(?=冷排)/),
+                chassisLen = shuileng.match(/\d+(?=冷排)/)
+            
+            fanLen = fanLen && fanLen[0] || null
+            chassisLen = chassisLen && chassisLen[0] || null
+            
+            if(fanLen && chassisLen && fanLen > chassisLen) {
+                return `散热器与机箱不兼容，散热器为${leixing},机箱为${shuileng}` 
+            }
+        }
     }
+
 
     if(height && cpu && height > cpu) {
         return `散热器与超过机箱高度，散热器【${height}mm】机箱【${cpu}mm】 `
