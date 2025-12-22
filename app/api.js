@@ -727,4 +727,64 @@ router.post('/api/getBuilds', koaBody, async ctx => {
     }
 })
 
+router.post('/api/getMyBuilds', koaBody, async ctx => {
+    let conn, pool
+    let { builds = [] } = ctx.request.body || {}
+    try {
+        let req = await Sql.getConn()
+            conn = req[0]
+            pool = req[1]
+
+        let data = await Promise.all(
+            builds.map(({ cpuId, boardId, memoryId, gpuId, diskId, powerId, fanId, chassisId }) => {
+                return Sql.query(conn, {
+                    sql: 'CALL getMyBuild(?, ?, ?, ?, ?, ?, ?, ?)',
+                    params: [cpuId, boardId, memoryId, gpuId, diskId, powerId, fanId, chassisId]
+                })
+            })
+        )
+
+        data = data.map(item => {
+            return item[0] ? item[0][0] : undefined
+        })
+
+        Responser(ctx, data, 200)
+    } catch(err) {
+        console.error('Gettin Song error: ' + err)
+        Responser(ctx, err, 500)
+    } finally {
+        conn && pool && pool.releaseConnection(conn)
+    }
+})
+
+router.post('/api/getBuildDetail', koaBody, async ctx => {
+    let conn, pool
+    let { builds = {} } = ctx.request.body || {}
+    try {
+        let req = await Sql.getConn()
+            conn = req[0]
+            pool = req[1]
+
+        let { cpuId, boardId, memoryId, gpuId, diskId, powerId, fanId, chassisId } = builds
+        
+        let data = await Sql.query(conn, {
+            sql: 'CALL getBuildDetail(?, ?, ?, ?, ?, ?, ?, ?)',
+            params: [cpuId, boardId, memoryId, gpuId, diskId, powerId, fanId, chassisId]
+        })
+        
+        data.pop()
+        
+        data = data.map(item => {
+            return item[0] || {}
+        })
+
+        Responser(ctx, data, 200)
+    } catch(err) {
+        console.error('Gettin Song error: ' + err)
+        Responser(ctx, err, 500)
+    } finally {
+        conn && pool && pool.releaseConnection(conn)
+    }
+})
+
 module.exports = router
