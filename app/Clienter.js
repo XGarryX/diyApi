@@ -3,7 +3,7 @@ const mysql = require('mysql');
 function OptPool() {
     this.flag = true;//是否连接过
     this.pool = mysql.createPool({
-        host: '120.24.160.252',
+        host: '47.106.8.254',
         user: 'root',
         password: '$Czr120962',
         database: 'diyData',
